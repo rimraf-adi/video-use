@@ -25,12 +25,12 @@ Cloud-hosted video-use is coming. [Join the waitlist at video-use.com](https://v
 Paste into Claude Code, Codex, Hermes, Openclaw, or any agent with shell access:
 
 ```text
-Set up https://github.com/browser-use/video-use for me.
+Set up https://github.com/rimraf-adi/video-use for me.
 
-Read install.md first to install this repo, wire up ffmpeg, register the skill with whichever agent you're running under, and set up the ElevenLabs API key — ask me to paste it when you need it. Then read SKILL.md for daily usage, and always read helpers/ because that's where the editing scripts live. After install, don't transcribe anything on your own — just tell me it's ready and wait for me to drop footage into a folder.
+Read install.md first to install this repo, wire up ffmpeg, and register the skill with whichever agent you're running under. Then read SKILL.md for daily usage, and always read helpers/ because that's where the editing scripts live. Transcription is powered by embedded Whisper (supports English, Hindi, and Marathi out of the box with zero API keys). After install, don't transcribe anything on your own — just tell me it's ready and wait for me to drop footage into a folder.
 ```
 
-The agent handles the clone, dependencies, skill registration, and prompts you once for your ElevenLabs API key (grab one at [elevenlabs.io/app/settings/api-keys](https://elevenlabs.io/app/settings/api-keys)).
+The agent handles the dependencies and skill registration. No paid API key is needed.
 
 Then point your agent at a folder of raw takes:
 
@@ -62,10 +62,6 @@ cd ~/Developer/video-use
 uv sync                         # or: pip install -e .
 brew install ffmpeg             # required
 brew install yt-dlp             # optional, for downloading online sources
-
-# 3. Add your ElevenLabs API key
-cp .env.example .env
-$EDITOR .env                    # ELEVENLABS_API_KEY=...
 ```
 
 ## How it works
@@ -76,7 +72,7 @@ The LLM never watches the video. It **reads** it — through two layers that tog
   <img src="static/timeline-view.svg" alt="timeline_view composite — filmstrip + speaker track + waveform + word labels + silence-gap cut candidates" width="100%">
 </p>
 
-**Layer 1 — Audio transcript (always loaded).** One ElevenLabs Scribe call per source gives word-level timestamps, speaker diarization, and audio events (`(laughter)`, `(applause)`, `(sigh)`). All takes pack into a single ~12KB `takes_packed.md` — the LLM's primary reading view.
+**Layer 1 — Audio transcript (always loaded).** Embedded Whisper (faster-whisper) transcribes audio locally with word-level timestamps in English, Hindi, and Marathi. All takes pack into a single ~12KB `takes_packed.md` — the LLM's primary reading view.
 
 ```
 ## C0103  (duration: 43.0s, 8 phrases)

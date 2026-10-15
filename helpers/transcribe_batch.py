@@ -1,15 +1,19 @@
-"""Batch-transcribe every video in a directory with 4 parallel workers.
+"""Batch-transcribe every video in a directory with parallel workers using embedded Whisper.
 
-Walks <videos_dir> for common video extensions, runs ElevenLabs Scribe on
+Walks <videos_dir> for common video extensions, runs Whisper (or Scribe) on
 each, writes transcripts to <videos_dir>/edit/transcripts/<name>.json.
+
+Supports English (en), Hindi (hi), Marathi (mr), or auto-detection.
 
 Cached per-file: any source that already has a transcript is skipped.
 
 Usage:
     python helpers/transcribe_batch.py <videos_dir>
-    python helpers/transcribe_batch.py <videos_dir> --workers 4
-    python helpers/transcribe_batch.py <videos_dir> --num-speakers 2
-    python helpers/transcribe_batch.py <videos_dir> --edit-dir /custom/edit
+    python helpers/transcribe_batch.py <videos_dir> --language hi
+    python helpers/transcribe_batch.py <videos_dir> --language mr
+    python helpers/transcribe_batch.py <videos_dir> --language en
+    python helpers/transcribe_batch.py <videos_dir> --model small
+    python helpers/transcribe_batch.py <videos_dir> --workers 2
 """
 
 from __future__ import annotations
@@ -20,8 +24,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-from transcribe import load_api_key, transcribe_one, transcript_path
-
+from transcribe import DEFAULT_MODEL, load_api_key, transcribe_one, transcript_path
 
 VIDEO_EXTS = {".mp4", ".MP4", ".mov", ".MOV", ".mkv", ".MKV", ".avi", ".AVI", ".m4v"}
 
@@ -35,7 +38,7 @@ def find_videos(videos_dir: Path) -> list[Path]:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Parallel batch transcription of a videos directory")
+    ap = argparse.ArgumentParser(description="Parallel batch transcription of a videos directory with Whisper")
     ap.add_argument("videos_dir", type=Path, help="Directory containing source videos")
     ap.add_argument(
         "--edit-dir",
@@ -43,18 +46,31 @@ def main() -> None:
         default=None,
         help="Edit output directory (default: <videos_dir>/edit)",
     )
-    ap.add_argument("--workers", type=int, default=4, help="Parallel workers (default: 4)")
+    ap.add_argument("--workers", type=int, default=2, help="Parallel workers (default: 2)")
     ap.add_argument(
         "--language",
         type=str,
         default=None,
-        help="Optional ISO language code. Omit to auto-detect per file.",
+        help="Optional language code ('en', 'hi', 'mr'). Omit to auto-detect per file.",
+    )
+    ap.add_argument(
+        "--model",
+        type=str,
+        default=DEFAULT_MODEL,
+        help=f"Whisper model (default: {DEFAULT_MODEL}, choices: tiny, base, small, medium, large-v3, large-v3-turbo)",
+    )
+    ap.add_argument(
+        "--engine",
+        type=str,
+        choices=["whisper", "scribe"],
+        default="whisper",
+        help="Transcription engine (default: whisper)",
     )
     ap.add_argument(
         "--num-speakers",
         type=int,
         default=None,
-        help="Optional number of speakers. Improves diarization when known.",
+        help="Optional number of speakers (used by scribe engine).",
     )
     ap.add_argument(
         "--audio-track",
@@ -84,9 +100,9 @@ def main() -> None:
         print("nothing to do")
         return
 
-    api_key = load_api_key()
+    api_key = load_api_key(required=(args.engine == "scribe"))
 
-    print(f"transcribing {len(pending)} files with {args.workers} parallel workers")
+    print(f"transcribing {len(pending)} files with {args.workers} workers using {args.engine} ({args.model})")
     t0 = time.time()
 
     errors: list[tuple[Path, str]] = []
@@ -101,6 +117,8 @@ def main() -> None:
                 num_speakers=args.num_speakers,
                 verbose=False,
                 audio_track=args.audio_track,
+                model=args.model,
+                engine=args.engine,
             ): v
             for v in pending
         }

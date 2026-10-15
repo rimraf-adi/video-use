@@ -404,7 +404,7 @@ def concat_segments(segment_paths: list[Path], out_path: Path, edit_dir: Path) -
 # -------- Master SRT (Rule 5) ------------------------------------------------
 
 
-PUNCT_BREAK = set(".,!?;:")
+PUNCT_BREAK = set(".,!?;:।॥")
 
 
 def _srt_timestamp(seconds: float) -> str:

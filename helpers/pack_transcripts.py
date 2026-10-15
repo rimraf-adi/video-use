@@ -72,6 +72,7 @@ def group_into_phrases(
             return
         text = " ".join(text_parts)
         text = text.replace(" ,", ",").replace(" .", ".").replace(" ?", "?").replace(" !", "!")
+        text = text.replace(" ।", "।").replace(" ॥", "॥")
         end_time = current_words[-1].get("end", current_words[-1].get("start", current_start or 0.0))
         phrases.append({
             "start": current_start,
